@@ -38,11 +38,12 @@ mvn test
 
 ## API 테스트 가이드
 
-### 1) IntelliJ HTTP Client 테스트
+### 1) `.http` 파일 기반 API 테스트 (IntelliJ / VSCode)
 
 - 파일: `http/api-scenarios.http`
 - 목적: 명세 기준 25개 API를 HTTP 요청으로 순차 검증
-- 실행: IntelliJ에서 `.http` 파일 열고 요청별 실행 또는 전체 실행
+- 실행 (IntelliJ): `.http` 파일 열고 요청별 실행 또는 `Run All Requests in File`
+- 실행 (VSCode): `REST Client` 확장 설치 후 `.http` 파일에서 `Send Request` 또는 `Run All`
 - 포함 변수: `cohortId`, `partId`, `teamId`, `memberId`, `sessionId`, `qrCodeId`, `qrHash`, `attendanceId`, `cohortMemberId`
 
 참고:
