@@ -35,14 +35,14 @@ class DepositServiceTest {
     void applyPenalty_insufficient() {
         CohortMember cm = createCohortMember(1000);
 
-        AppException ex = assertThrows(AppException.class, () -> depositService.applyPenalty(cm, 2000, "TEST"));
+        AppException ex = assertThrows(AppException.class, () -> depositService.applyPenalty(cm, 2000, null, "TEST"));
 
         assertEquals(ErrorCode.DEPOSIT_INSUFFICIENT, ex.getErrorCode());
     }
 
     private CohortMember createCohortMember(int deposit) {
-        Cohort cohort = new Cohort("11기", true);
-        Member member = new Member("u1", "pw", "회원", MemberRole.MEMBER, MemberStatus.ACTIVE);
+        Cohort cohort = new Cohort("11기", 11, true);
+        Member member = new Member("u1", "pw", "회원", "010-0000-0000", MemberRole.MEMBER, MemberStatus.ACTIVE);
         Part part = new Part(cohort, "SERVER");
         Team team = new Team(cohort, "Team A");
         return new CohortMember(cohort, member, part, team, deposit);

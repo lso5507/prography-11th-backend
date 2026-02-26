@@ -7,11 +7,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.prography.backend.domain.MemberRole;
 import com.prography.backend.entity.Cohort;
+import com.prography.backend.entity.Member;
 import com.prography.backend.entity.Part;
 import com.prography.backend.entity.Team;
+import com.prography.backend.repository.CohortMemberRepository;
 import com.prography.backend.repository.CohortRepository;
+import com.prography.backend.repository.MemberRepository;
 import com.prography.backend.repository.PartRepository;
 import com.prography.backend.repository.TeamRepository;
 import java.util.Map;
@@ -33,6 +35,8 @@ class DepositControllerIntegrationTest {
     @Autowired private CohortRepository cohortRepository;
     @Autowired private PartRepository partRepository;
     @Autowired private TeamRepository teamRepository;
+    @Autowired private MemberRepository memberRepository;
+    @Autowired private CohortMemberRepository cohortMemberRepository;
 
     @Test
     @DisplayName("Deposit 도메인 통합 - 보증금 이력 조회")
@@ -48,14 +52,16 @@ class DepositControllerIntegrationTest {
                     "loginId", loginId,
                     "password", "pass1234",
                     "name", "보증금회원",
-                    "role", MemberRole.MEMBER.name(),
+                    "phone", "010-1111-2222",
                     "cohortId", cohort11.getId(),
                     "partId", part.getId(),
                     "teamId", team.getId()
                 ))))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andReturn();
-        long cohortMemberId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("cohortMemberId").asLong();
+        long memberId = objectMapper.readTree(created.getResponse().getContentAsString()).path("data").path("id").asLong();
+        Member member = memberRepository.findById(memberId).orElseThrow();
+        long cohortMemberId = cohortMemberRepository.findByMember(member).stream().findFirst().orElseThrow().getId();
 
         mockMvc.perform(get("/api/v1/admin/cohort-members/{id}/deposits", cohortMemberId))
             .andExpect(status().isOk())

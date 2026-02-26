@@ -2,7 +2,6 @@ package com.prography.backend.unit.member;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import com.prography.backend.domain.MemberRole;
@@ -46,7 +45,7 @@ class MemberServiceTest {
         when(memberRepository.existsByLoginId("dup-user")).thenReturn(true);
 
         MemberDto.CreateMemberRequest req = new MemberDto.CreateMemberRequest(
-            "dup-user", "pass1234", "회원", MemberRole.MEMBER, 1L, 1L, 1L
+            "dup-user", "pass1234", "회원", "010-1111-1111", 1L, 1L, 1L
         );
 
         AppException ex = assertThrows(AppException.class, () -> memberService.createMember(req));
@@ -57,7 +56,7 @@ class MemberServiceTest {
     @DisplayName("존재하지 않는 팀 지정 시 TEAM_NOT_FOUND")
     void createMember_team_not_found() {
         when(memberRepository.existsByLoginId("new-user")).thenReturn(false);
-        Cohort cohort = new Cohort("11기", true);
+        Cohort cohort = new Cohort("11기", 11, true);
         Part part = new Part(cohort, "SERVER");
 
         when(cohortRepository.findById(1L)).thenReturn(Optional.of(cohort));
@@ -65,7 +64,7 @@ class MemberServiceTest {
         when(teamRepository.findByIdAndCohort(999L, cohort)).thenReturn(Optional.empty());
 
         MemberDto.CreateMemberRequest req = new MemberDto.CreateMemberRequest(
-            "new-user", "pass1234", "회원", MemberRole.MEMBER, 1L, 1L, 999L
+            "new-user", "pass1234", "회원", "010-2222-2222", 1L, 1L, 999L
         );
 
         AppException ex = assertThrows(AppException.class, () -> memberService.createMember(req));

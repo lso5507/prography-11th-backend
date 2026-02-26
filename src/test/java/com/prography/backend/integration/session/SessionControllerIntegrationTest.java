@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.prography.backend.domain.SessionStatus;
 import java.time.LocalDate;
 import java.util.Map;
 import org.junit.jupiter.api.DisplayName;
@@ -35,12 +34,11 @@ class SessionControllerIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "title", title,
-                    "sessionDate", LocalDate.now().toString(),
-                    "startTime", "10:00",
-                    "endTime", "12:00",
-                    "status", SessionStatus.IN_PROGRESS.name()
+                    "date", LocalDate.now().toString(),
+                    "time", "10:00",
+                    "location", "강남"
                 ))))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andReturn();
         JsonNode root = objectMapper.readTree(created.getResponse().getContentAsString());
         long sessionId = root.path("data").path("id").asLong();

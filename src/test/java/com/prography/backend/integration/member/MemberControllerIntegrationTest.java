@@ -8,7 +8,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.prography.backend.domain.MemberRole;
 import com.prography.backend.entity.Cohort;
 import com.prography.backend.entity.Part;
 import com.prography.backend.entity.Team;
@@ -49,12 +48,12 @@ class MemberControllerIntegrationTest {
                     "loginId", loginId,
                     "password", "pass1234",
                     "name", "통합회원",
-                    "role", MemberRole.MEMBER.name(),
+                    "phone", "010-1234-5678",
                     "cohortId", cohort11.getId(),
                     "partId", part.getId(),
                     "teamId", team.getId()
                 ))))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andReturn();
         JsonNode root = objectMapper.readTree(created.getResponse().getContentAsString());
         long memberId = root.path("data").path("id").asLong();

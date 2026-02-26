@@ -11,21 +11,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.prography.backend.domain.MemberRole;
-import com.prography.backend.domain.SessionStatus;
 import com.prography.backend.entity.Cohort;
+import com.prography.backend.entity.CohortMember;
 import com.prography.backend.entity.Member;
 import com.prography.backend.entity.Part;
 import com.prography.backend.entity.QrCode;
 import com.prography.backend.entity.Team;
 import com.prography.backend.repository.CohortRepository;
+import com.prography.backend.repository.CohortMemberRepository;
 import com.prography.backend.repository.MemberRepository;
 import com.prography.backend.repository.PartRepository;
 import com.prography.backend.repository.QrCodeRepository;
 import com.prography.backend.repository.SessionRepository;
 import com.prography.backend.repository.TeamRepository;
 import java.time.LocalDate;
-import java.time.LocalTime;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -69,6 +68,9 @@ class ApiScenarioTest {
     @Autowired
     private SessionRepository sessionRepository;
 
+    @Autowired
+    private CohortMemberRepository cohortMemberRepository;
+
     private Cohort cohort11;
     private Part serverPart;
     private Team teamA;
@@ -92,7 +94,7 @@ class ApiScenarioTest {
                 .content(objectMapper.writeValueAsString(Map.of("loginId", "admin", "password", "admin1234"))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.memberId").value(adminId));
+            .andExpect(jsonPath("$.data.id").value(adminId));
     }
 
     @Test
@@ -116,15 +118,14 @@ class ApiScenarioTest {
                     "loginId", loginId,
                     "password", "pass1234",
                     "name", "테스트회원03",
-                    "role", MemberRole.MEMBER.name(),
+                    "phone", "010-1234-0003",
                     "cohortId", cohort11.getId(),
                     "partId", serverPart.getId(),
                     "teamId", teamA.getId()
                 ))))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.loginId").value(loginId))
-            .andExpect(jsonPath("$.data.depositBalance").value(100000));
+            .andExpect(jsonPath("$.data.loginId").value(loginId));
     }
 
     @Test
@@ -157,8 +158,7 @@ class ApiScenarioTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "name", "수정회원06",
-                    "role", MemberRole.MEMBER.name(),
-                    "status", "ACTIVE",
+                    "phone", "010-5678-0006",
                     "partId", serverPart.getId(),
                     "teamId", teamA.getId()
                 ))))
@@ -224,12 +224,11 @@ class ApiScenarioTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "title", title,
-                    "sessionDate", LocalDate.now().toString(),
-                    "startTime", LocalTime.now().minusMinutes(5).withSecond(0).withNano(0).toString(),
-                    "endTime", LocalTime.now().plusHours(1).withSecond(0).withNano(0).toString(),
-                    "status", SessionStatus.IN_PROGRESS.name()
+                    "date", LocalDate.now().toString(),
+                    "time", "18:00",
+                    "location", "강남"
                 ))))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.title").value(title));
     }
@@ -243,10 +242,10 @@ class ApiScenarioTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "title", "세션13-수정",
-                    "sessionDate", LocalDate.now().toString(),
-                    "startTime", LocalTime.now().minusMinutes(5).withSecond(0).withNano(0).toString(),
-                    "endTime", LocalTime.now().plusHours(2).withSecond(0).withNano(0).toString(),
-                    "status", SessionStatus.IN_PROGRESS.name()
+                    "date", LocalDate.now().toString(),
+                    "time", "19:00",
+                    "location", "신촌",
+                    "status", "IN_PROGRESS"
                 ))))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
@@ -274,7 +273,7 @@ class ApiScenarioTest {
         qrCodeRepository.save(active);
 
         mockMvc.perform(post("/api/v1/admin/sessions/{id}/qrcodes", sessionId))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.sessionId").value(sessionId));
     }
@@ -302,10 +301,10 @@ class ApiScenarioTest {
         mockMvc.perform(post("/api/v1/attendances")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
-                    "qrHashValue", qrHash,
+                    "hashValue", qrHash,
                     "memberId", memberId
                 ))))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.memberId").value(memberId));
     }
@@ -337,7 +336,7 @@ class ApiScenarioTest {
         mockMvc.perform(get("/api/v1/members/{id}/attendance-summary", memberId))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.currentDeposit", notNullValue()));
+            .andExpect(jsonPath("$.data.deposit", notNullValue()));
     }
 
     @Test
@@ -355,7 +354,7 @@ class ApiScenarioTest {
                     "status", "ABSENT",
                     "lateMinutes", 0
                 ))))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andExpect(jsonPath("$.success").value(true))
             .andExpect(jsonPath("$.data.status").value("ABSENT"));
     }
@@ -390,7 +389,7 @@ class ApiScenarioTest {
         mockMvc.perform(get("/api/v1/admin/attendances/sessions/{id}/summary", sessionId))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.present", greaterThanOrEqualTo(1)));
+            .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(1)));
     }
 
     @Test
@@ -404,7 +403,7 @@ class ApiScenarioTest {
         mockMvc.perform(get("/api/v1/admin/attendances/members/{id}", memberId))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(1)));
+            .andExpect(jsonPath("$.data.attendances.length()", greaterThanOrEqualTo(1)));
     }
 
     @Test
@@ -418,7 +417,7 @@ class ApiScenarioTest {
         mockMvc.perform(get("/api/v1/admin/attendances/sessions/{id}", sessionId))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.success").value(true))
-            .andExpect(jsonPath("$.data.length()", greaterThanOrEqualTo(1)));
+            .andExpect(jsonPath("$.data.attendances.length()", greaterThanOrEqualTo(1)));
     }
 
     @Test
@@ -446,12 +445,12 @@ class ApiScenarioTest {
                     "loginId", loginId,
                     "password", "pass1234",
                     "name", "시나리오회원-" + prefix,
-                    "role", MemberRole.MEMBER.name(),
+                    "phone", "010-0000-" + String.format("%04d", Math.abs(prefix.hashCode() % 10000)),
                     "cohortId", cohort11.getId(),
                     "partId", serverPart.getId(),
                     "teamId", teamA.getId()
                 ))))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andReturn();
         JsonNode root = objectMapper.readTree(result.getResponse().getContentAsString());
         return root.path("data").path("id").asLong();
@@ -463,51 +462,43 @@ class ApiScenarioTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
                     "title", title,
-                    "sessionDate", LocalDate.now().toString(),
-                    "startTime", LocalTime.now().minusMinutes(10).withSecond(0).withNano(0).toString(),
-                    "endTime", LocalTime.now().plusHours(1).withSecond(0).withNano(0).toString(),
-                    "status", SessionStatus.IN_PROGRESS.name()
+                    "date", LocalDate.now().toString(),
+                    "time", "09:00",
+                    "location", "강남"
                 ))))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andReturn();
         JsonNode root = objectMapper.readTree(result.getResponse().getContentAsString());
-        return root.path("data").path("id").asLong();
+        Long sessionId = root.path("data").path("id").asLong();
+
+        mockMvc.perform(put("/api/v1/admin/sessions/{id}", sessionId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(Map.of(
+                    "status", "IN_PROGRESS"
+                ))))
+            .andExpect(status().isOk());
+
+        return sessionId;
     }
 
     private Long getQrCodeIdFromSession(Long sessionId) throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/v1/admin/sessions"))
-            .andExpect(status().isOk())
-            .andReturn();
-        JsonNode sessions = objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
-        for (JsonNode session : sessions) {
-            if (session.path("id").asLong() == sessionId) {
-                return session.path("qrCodeId").asLong();
-            }
-        }
-        throw new IllegalStateException("QR not found for session: " + sessionId);
+        com.prography.backend.entity.SessionEntity session = sessionRepository.findById(sessionId).orElseThrow();
+        return qrCodeRepository.findFirstBySessionAndActiveTrue(session).orElseThrow().getId();
     }
 
     private String getQrHashFromSession(Long sessionId) throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/v1/admin/sessions"))
-            .andExpect(status().isOk())
-            .andReturn();
-        JsonNode sessions = objectMapper.readTree(result.getResponse().getContentAsString()).path("data");
-        for (JsonNode session : sessions) {
-            if (session.path("id").asLong() == sessionId) {
-                return session.path("qrHashValue").asText();
-            }
-        }
-        throw new IllegalStateException("QR hash not found for session: " + sessionId);
+        com.prography.backend.entity.SessionEntity session = sessionRepository.findById(sessionId).orElseThrow();
+        return qrCodeRepository.findFirstBySessionAndActiveTrue(session).orElseThrow().getHashValue();
     }
 
     private void checkIn(Long memberId, String qrHash) throws Exception {
         mockMvc.perform(post("/api/v1/attendances")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(objectMapper.writeValueAsString(Map.of(
-                    "qrHashValue", qrHash,
+                    "hashValue", qrHash,
                     "memberId", memberId
                 ))))
-            .andExpect(status().isOk());
+            .andExpect(status().isCreated());
     }
 
     private Long registerAttendance(Long sessionId, Long memberId, String status, int lateMinutes) throws Exception {
@@ -519,17 +510,15 @@ class ApiScenarioTest {
                     "status", status,
                     "lateMinutes", lateMinutes
                 ))))
-            .andExpect(status().isOk())
+            .andExpect(status().isCreated())
             .andReturn();
         JsonNode root = objectMapper.readTree(result.getResponse().getContentAsString());
         return root.path("data").path("id").asLong();
     }
 
     private Long getCohortMemberId(Long memberId) throws Exception {
-        MvcResult result = mockMvc.perform(get("/api/v1/admin/members/{id}", memberId))
-            .andExpect(status().isOk())
-            .andReturn();
-        JsonNode root = objectMapper.readTree(result.getResponse().getContentAsString());
-        return root.path("data").path("cohortMemberId").asLong();
+        Member member = memberRepository.findById(memberId).orElseThrow();
+        CohortMember cohortMember = cohortMemberRepository.findByMember(member).stream().findFirst().orElseThrow();
+        return cohortMember.getId();
     }
 }

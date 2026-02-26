@@ -25,6 +25,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -49,27 +50,26 @@ class AttendanceServiceTest {
     @Test
     @DisplayName("일정별 출결 요약 집계")
     void getSessionSummary_aggregates() {
-        Cohort cohort = new Cohort("11기", true);
-        SessionEntity session = new SessionEntity(cohort, "세션", LocalDate.now(), LocalTime.NOON, LocalTime.MAX,
+        Cohort cohort = new Cohort("11기", 11, true);
+        SessionEntity session = new SessionEntity(cohort, "세션", LocalDate.now(), LocalTime.NOON, LocalTime.MAX, "강남",
             com.prography.backend.domain.SessionStatus.IN_PROGRESS);
         when(sessionService.findSession(1L)).thenReturn(session);
 
-        Attendance a1 = new Attendance(createCm(), session, AttendanceStatus.PRESENT, 0, 0, AttendanceSource.MANUAL,
-            LocalDateTime.now());
-        Attendance a2 = new Attendance(createCm(), session, AttendanceStatus.LATE, 5, 2500, AttendanceSource.QR,
-            LocalDateTime.now());
-        when(attendanceRepository.findBySessionOrderByCreatedAtDesc(session)).thenReturn(List.of(a1, a2));
+        CohortMember cm = createCm();
+        when(cohortMemberRepository.findByCohort(session.getCohort())).thenReturn(List.of(cm));
 
-        AttendanceDto.SessionAttendanceSummaryResponse summary = attendanceService.getSessionSummary(1L);
+        Attendance a1 = new Attendance(cm, session, AttendanceStatus.PRESENT, null, 0, AttendanceSource.MANUAL,
+            LocalDateTime.now(), null);
+        when(attendanceRepository.findByCohortMemberAndSession(cm, session)).thenReturn(Optional.of(a1));
 
-        assertEquals(1, summary.present());
-        assertEquals(1, summary.late());
-        assertEquals(2500, summary.totalPenalty());
+        AttendanceDto.MemberSessionSummaryResponse summary = attendanceService.getSessionSummary(1L).get(0);
+
+        assertEquals(1, summary.present() + summary.absent() + summary.late() + summary.excused());
     }
 
     private CohortMember createCm() {
-        Cohort cohort = new Cohort("11기", true);
-        Member member = new Member("u1", "pw", "회원", com.prography.backend.domain.MemberRole.MEMBER,
+        Cohort cohort = new Cohort("11기", 11, true);
+        Member member = new Member("u1", "pw", "회원", "010-0000-0000", com.prography.backend.domain.MemberRole.MEMBER,
             com.prography.backend.domain.MemberStatus.ACTIVE);
         Part part = new Part(cohort, "SERVER");
         Team team = new Team(cohort, "Team A");

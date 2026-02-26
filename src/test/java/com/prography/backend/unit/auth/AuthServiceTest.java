@@ -39,7 +39,8 @@ class AuthServiceTest {
     @Test
     @DisplayName("로그인 성공")
     void login_success() {
-        Member member = new Member("admin", encoder.encode("admin1234"), "관리자", MemberRole.ADMIN, MemberStatus.ACTIVE);
+        Member member = new Member("admin", encoder.encode("admin1234"), "관리자", "010-0000-0000", MemberRole.ADMIN,
+            MemberStatus.ACTIVE);
         when(memberRepository.findByLoginId("admin")).thenReturn(Optional.of(member));
 
         AuthDto.LoginResponse response = authService.login(new AuthDto.LoginRequest("admin", "admin1234"));
@@ -51,7 +52,8 @@ class AuthServiceTest {
     @Test
     @DisplayName("비밀번호 불일치 시 LOGIN_FAILED")
     void login_failed_when_wrong_password() {
-        Member member = new Member("admin", encoder.encode("admin1234"), "관리자", MemberRole.ADMIN, MemberStatus.ACTIVE);
+        Member member = new Member("admin", encoder.encode("admin1234"), "관리자", "010-0000-0000", MemberRole.ADMIN,
+            MemberStatus.ACTIVE);
         when(memberRepository.findByLoginId("admin")).thenReturn(Optional.of(member));
 
         AppException ex = assertThrows(AppException.class,
