@@ -30,7 +30,16 @@ public class AuthService {
         if (member.getStatus() == MemberStatus.WITHDRAWN) {
             throw new AppException(ErrorCode.MEMBER_WITHDRAWN);
         }
-        return new AuthDto.LoginResponse(member.getId(), member.getLoginId(), member.getName(), member.getRole());
+        return new AuthDto.LoginResponse(
+            member.getId(),
+            member.getLoginId(),
+            member.getName(),
+            member.getPhone(),
+            member.getStatus(),
+            member.getRole(),
+            member.getCreatedAt(),
+            member.getUpdatedAt()
+        );
     }
 
     public BCryptPasswordEncoder passwordEncoder() {

@@ -43,21 +43,25 @@ public class Attendance extends BaseTimeEntity {
     @Column(nullable = false)
     private AttendanceSource source;
 
-    @Column(nullable = false)
+    @Column
     private LocalDateTime checkedAt;
+
+    @Column
+    private String reason;
 
     protected Attendance() {
     }
 
-    public Attendance(CohortMember cohortMember, SessionEntity session, AttendanceStatus status, int lateMinutes,
-                      int penaltyAmount, AttendanceSource source, LocalDateTime checkedAt) {
+    public Attendance(CohortMember cohortMember, SessionEntity session, AttendanceStatus status, Integer lateMinutes,
+                      int penaltyAmount, AttendanceSource source, LocalDateTime checkedAt, String reason) {
         this.cohortMember = cohortMember;
         this.session = session;
         this.status = status;
-        this.lateMinutes = lateMinutes;
+        this.lateMinutes = lateMinutes == null ? 0 : lateMinutes;
         this.penaltyAmount = penaltyAmount;
         this.source = source;
         this.checkedAt = checkedAt;
+        this.reason = reason;
     }
 
     public Long getId() {
@@ -92,9 +96,16 @@ public class Attendance extends BaseTimeEntity {
         return checkedAt;
     }
 
-    public void update(AttendanceStatus status, int lateMinutes, int penaltyAmount) {
+    public String getReason() {
+        return reason;
+    }
+
+    public void update(AttendanceStatus status, Integer lateMinutes, int penaltyAmount, String reason) {
         this.status = status;
-        this.lateMinutes = lateMinutes;
+        this.lateMinutes = lateMinutes == null ? 0 : lateMinutes;
         this.penaltyAmount = penaltyAmount;
+        if (reason != null) {
+            this.reason = reason;
+        }
     }
 }

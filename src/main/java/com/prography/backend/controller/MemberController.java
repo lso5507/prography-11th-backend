@@ -34,7 +34,7 @@ public class MemberController {
     }
 
     @GetMapping("/attendances")
-    public ApiResponse<java.util.List<AttendanceDto.AttendanceResponse>> getAttendances(@RequestParam Long memberId) {
+    public ApiResponse<java.util.List<AttendanceDto.MyAttendanceResponse>> getAttendances(@RequestParam Long memberId) {
         return ApiResponse.success(attendanceService.getMyAttendances(memberId));
     }
 }

@@ -20,13 +20,13 @@ public class DepositService {
     }
 
     @Transactional
-    public void recordInitial(CohortMember cohortMember, int amount) {
+    public void recordInitial(CohortMember cohortMember, int amount, Long attendanceId, String description) {
         depositHistoryRepository.save(new DepositHistory(cohortMember, DepositType.INITIAL, amount,
-            cohortMember.getDepositBalance(), "INITIAL_DEPOSIT"));
+            cohortMember.getDepositBalance(), attendanceId, description));
     }
 
     @Transactional
-    public void applyPenalty(CohortMember cohortMember, int amount, String reason) {
+    public void applyPenalty(CohortMember cohortMember, int amount, Long attendanceId, String description) {
         if (amount <= 0) {
             return;
         }
@@ -34,18 +34,18 @@ public class DepositService {
             throw new AppException(ErrorCode.DEPOSIT_INSUFFICIENT);
         }
         cohortMember.withdrawPenalty(amount);
-        depositHistoryRepository.save(new DepositHistory(cohortMember, DepositType.PENALTY, amount,
-            cohortMember.getDepositBalance(), reason));
+        depositHistoryRepository.save(new DepositHistory(cohortMember, DepositType.PENALTY, -amount,
+            cohortMember.getDepositBalance(), attendanceId, description));
     }
 
     @Transactional
-    public void refund(CohortMember cohortMember, int amount, String reason) {
+    public void refund(CohortMember cohortMember, int amount, Long attendanceId, String description) {
         if (amount <= 0) {
             return;
         }
         cohortMember.refund(amount);
         depositHistoryRepository.save(new DepositHistory(cohortMember, DepositType.REFUND, amount,
-            cohortMember.getDepositBalance(), reason));
+            cohortMember.getDepositBalance(), attendanceId, description));
     }
 
     public List<DepositHistory> getHistories(CohortMember cohortMember) {

@@ -26,6 +26,9 @@ public class Member extends BaseTimeEntity {
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false)
+    private String phone;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private MemberRole role;
@@ -37,10 +40,11 @@ public class Member extends BaseTimeEntity {
     protected Member() {
     }
 
-    public Member(String loginId, String password, String name, MemberRole role, MemberStatus status) {
+    public Member(String loginId, String password, String name, String phone, MemberRole role, MemberStatus status) {
         this.loginId = loginId;
         this.password = password;
         this.name = name;
+        this.phone = phone;
         this.role = role;
         this.status = status;
     }
@@ -61,6 +65,10 @@ public class Member extends BaseTimeEntity {
         return name;
     }
 
+    public String getPhone() {
+        return phone;
+    }
+
     public MemberRole getRole() {
         return role;
     }
@@ -69,10 +77,13 @@ public class Member extends BaseTimeEntity {
         return status;
     }
 
-    public void update(String name, MemberRole role, MemberStatus status) {
-        this.name = name;
-        this.role = role;
-        this.status = status;
+    public void update(String name, String phone) {
+        if (name != null) {
+            this.name = name;
+        }
+        if (phone != null) {
+            this.phone = phone;
+        }
     }
 
     public void withdraw() {

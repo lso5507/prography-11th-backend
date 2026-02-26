@@ -27,7 +27,7 @@ public class CohortService {
     @Transactional(readOnly = true)
     public List<CohortDto.CohortListItem> getCohorts() {
         return cohortRepository.findAll().stream()
-            .map(c -> new CohortDto.CohortListItem(c.getId(), c.getName(), c.isCurrent()))
+            .map(c -> new CohortDto.CohortListItem(c.getId(), c.getGeneration(), c.getName(), c.getCreatedAt()))
             .toList();
     }
 
@@ -42,6 +42,7 @@ public class CohortService {
         List<CohortDto.TeamItem> teams = teamRepository.findByCohort(cohort).stream()
             .map(t -> new CohortDto.TeamItem(t.getId(), t.getName()))
             .toList();
-        return new CohortDto.CohortDetailResponse(cohort.getId(), cohort.getName(), cohort.isCurrent(), parts, teams);
+        return new CohortDto.CohortDetailResponse(cohort.getId(), cohort.getGeneration(), cohort.getName(), parts, teams,
+            cohort.getCreatedAt());
     }
 }

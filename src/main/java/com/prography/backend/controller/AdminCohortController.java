@@ -48,7 +48,14 @@ public class AdminCohortController {
         return ApiResponse.success(
             depositService.getHistories(cohortMember).stream()
                 .map(d -> new DepositDto.DepositHistoryResponse(
-                    d.getId(), d.getType(), d.getAmount(), d.getBalanceAfter(), d.getReason(), d.getCreatedAt()
+                    d.getId(),
+                    d.getCohortMember().getId(),
+                    d.getType(),
+                    d.getAmount(),
+                    d.getBalanceAfter(),
+                    d.getAttendanceId(),
+                    d.getDescription(),
+                    d.getCreatedAt()
                 ))
                 .toList()
         );

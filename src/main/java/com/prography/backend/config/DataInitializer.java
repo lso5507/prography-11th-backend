@@ -51,8 +51,8 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     @Transactional
     public void run(String... args) {
-        Cohort cohort10 = cohortRepository.findByName("10기").orElseGet(() -> cohortRepository.save(new Cohort("10기", false)));
-        Cohort cohort11 = cohortRepository.findByName("11기").orElseGet(() -> cohortRepository.save(new Cohort("11기", true)));
+        Cohort cohort10 = cohortRepository.findByName("10기").orElseGet(() -> cohortRepository.save(new Cohort("10기", 10, false)));
+        Cohort cohort11 = cohortRepository.findByName("11기").orElseGet(() -> cohortRepository.save(new Cohort("11기", 11, true)));
 
         seedParts(cohort10);
         seedParts(cohort11);
@@ -63,6 +63,7 @@ public class DataInitializer implements CommandLineRunner {
                 "admin",
                 passwordEncoder.encode("admin1234"),
                 "관리자",
+                "010-0000-0000",
                 MemberRole.ADMIN,
                 MemberStatus.ACTIVE
             ))
@@ -72,7 +73,7 @@ public class DataInitializer implements CommandLineRunner {
             Part server = partRepository.findByCohortAndName(cohort11, "SERVER").orElseThrow();
             Team teamA = teamRepository.findByCohortAndName(cohort11, "Team A").orElseThrow();
             CohortMember cm = cohortMemberRepository.save(new CohortMember(cohort11, admin, server, teamA, INITIAL_DEPOSIT));
-            depositService.recordInitial(cm, INITIAL_DEPOSIT);
+            depositService.recordInitial(cm, INITIAL_DEPOSIT, null, "초기 보증금");
         }
     }
 

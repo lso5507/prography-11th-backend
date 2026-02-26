@@ -7,10 +7,12 @@ public class DepositDto {
 
     public record DepositHistoryResponse(
         Long id,
+        Long cohortMemberId,
         DepositType type,
         int amount,
         int balanceAfter,
-        String reason,
+        Long attendanceId,
+        String description,
         LocalDateTime createdAt
     ) {
     }

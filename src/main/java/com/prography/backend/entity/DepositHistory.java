@@ -33,18 +33,23 @@ public class DepositHistory extends BaseTimeEntity {
     @Column(nullable = false)
     private int balanceAfter;
 
+    @Column
+    private Long attendanceId;
+
     @Column(nullable = false)
-    private String reason;
+    private String description;
 
     protected DepositHistory() {
     }
 
-    public DepositHistory(CohortMember cohortMember, DepositType type, int amount, int balanceAfter, String reason) {
+    public DepositHistory(CohortMember cohortMember, DepositType type, int amount, int balanceAfter, Long attendanceId,
+                          String description) {
         this.cohortMember = cohortMember;
         this.type = type;
         this.amount = amount;
         this.balanceAfter = balanceAfter;
-        this.reason = reason;
+        this.attendanceId = attendanceId;
+        this.description = description;
     }
 
     public Long getId() {
@@ -67,7 +72,11 @@ public class DepositHistory extends BaseTimeEntity {
         return balanceAfter;
     }
 
-    public String getReason() {
-        return reason;
+    public Long getAttendanceId() {
+        return attendanceId;
+    }
+
+    public String getDescription() {
+        return description;
     }
 }

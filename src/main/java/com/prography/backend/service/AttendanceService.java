@@ -49,14 +49,10 @@ public class AttendanceService {
 
     @Transactional
     public AttendanceDto.AttendanceResponse checkIn(AttendanceDto.CheckInRequest request) {
-        QrCode qrCode = qrCodeService.findByHash(request.qrHashValue());
-        if (!qrCode.isActive()) {
-            throw new AppException(ErrorCode.QR_INVALID);
-        }
+        QrCode qrCode = qrCodeService.findByHash(request.hashValue());
         if (qrCode.getExpiresAt().isBefore(LocalDateTime.now())) {
             throw new AppException(ErrorCode.QR_EXPIRED);
         }
-
         SessionEntity session = qrCode.getSession();
         if (session.getStatus() != SessionStatus.IN_PROGRESS) {
             throw new AppException(ErrorCode.SESSION_NOT_IN_PROGRESS);
@@ -75,44 +71,45 @@ public class AttendanceService {
                 throw new AppException(ErrorCode.ATTENDANCE_ALREADY_CHECKED);
             });
 
-        LocalDateTime sessionStartAt = LocalDateTime.of(session.getSessionDate(), session.getStartTime());
+        LocalDateTime sessionAt = LocalDateTime.of(session.getSessionDate(), session.getStartTime());
         LocalDateTime now = LocalDateTime.now();
-        AttendanceStatus status;
-        int lateMinutes;
-        if (now.isAfter(sessionStartAt)) {
-            status = AttendanceStatus.LATE;
-            lateMinutes = (int) Duration.between(sessionStartAt, now).toMinutes();
-        } else {
-            status = AttendanceStatus.PRESENT;
-            lateMinutes = 0;
-        }
-
+        AttendanceStatus status = now.isAfter(sessionAt) ? AttendanceStatus.LATE : AttendanceStatus.PRESENT;
+        Integer lateMinutes = status == AttendanceStatus.LATE ? (int) Duration.between(sessionAt, now).toMinutes() : null;
         int penalty = calculatePenalty(status, lateMinutes);
         if (penalty > 0) {
-            depositService.applyPenalty(cohortMember, penalty, "QR_CHECK_IN");
+            depositService.applyPenalty(cohortMember, penalty, null, "QR 체크인 패널티");
         }
 
         Attendance attendance = attendanceRepository.save(
-            new Attendance(cohortMember, session, status, lateMinutes, penalty, AttendanceSource.QR, LocalDateTime.now())
+            new Attendance(cohortMember, session, status, lateMinutes, penalty, AttendanceSource.QR, now, null)
         );
-        return toDto(attendance);
+        return toAttendanceResponse(attendance);
     }
 
     @Transactional(readOnly = true)
-    public List<AttendanceDto.AttendanceResponse> getMyAttendances(Long memberId) {
+    public List<AttendanceDto.MyAttendanceResponse> getMyAttendances(Long memberId) {
         Member member = memberService.findMember(memberId);
         CohortMember cohortMember = cohortMemberRepository.findByMemberAndCohort(member, cohortResolver.getCurrentCohort())
             .orElseThrow(() -> new AppException(ErrorCode.COHORT_MEMBER_NOT_FOUND));
-        return attendanceRepository.findByCohortMemberOrderByCreatedAtDesc(cohortMember).stream().map(this::toDto).toList();
+        return attendanceRepository.findByCohortMemberOrderByCreatedAtDesc(cohortMember).stream()
+            .map(this::toMyAttendanceResponse)
+            .toList();
     }
 
     @Transactional(readOnly = true)
     public AttendanceDto.AttendanceSummaryResponse getMySummary(Long memberId) {
         Member member = memberService.findMember(memberId);
-        CohortMember cohortMember = cohortMemberRepository.findByMemberAndCohort(member, cohortResolver.getCurrentCohort())
-            .orElseThrow(() -> new AppException(ErrorCode.COHORT_MEMBER_NOT_FOUND));
-        List<Attendance> attendances = attendanceRepository.findByCohortMemberOrderByCreatedAtDesc(cohortMember);
-        return toSummary(attendances, cohortMember.getDepositBalance());
+        List<Attendance> attendances = attendanceRepository.findByCohortMember_Member_IdOrderByCreatedAtDesc(memberId);
+        CohortMember cm = cohortMemberRepository.findByMemberAndCohort(member, cohortResolver.getCurrentCohort()).orElse(null);
+
+        long present = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.PRESENT).count();
+        long absent = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.ABSENT).count();
+        long late = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.LATE).count();
+        long excused = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.EXCUSED).count();
+        int totalPenalty = attendances.stream().mapToInt(Attendance::getPenaltyAmount).sum();
+
+        return new AttendanceDto.AttendanceSummaryResponse(memberId, present, absent, late, excused, totalPenalty,
+            cm == null ? null : cm.getDepositBalance());
     }
 
     @Transactional
@@ -130,17 +127,18 @@ public class AttendanceService {
         validateExcusedLimitForCreate(cohortMember, request.status());
         int penalty = calculatePenalty(request.status(), request.lateMinutes());
         if (penalty > 0) {
-            depositService.applyPenalty(cohortMember, penalty, "ADMIN_REGISTER");
+            depositService.applyPenalty(cohortMember, penalty, null,
+                "출결 등록 - " + request.status() + " 패널티 " + penalty + "원");
         }
         if (request.status() == AttendanceStatus.EXCUSED) {
             cohortMember.increaseExcusedCount();
         }
 
         Attendance attendance = attendanceRepository.save(
-            new Attendance(cohortMember, session, request.status(), request.lateMinutes(), penalty, AttendanceSource.MANUAL,
-                LocalDateTime.now())
+            new Attendance(cohortMember, session, request.status(), request.lateMinutes(), penalty, AttendanceSource.MANUAL, null,
+                request.reason())
         );
-        return toDto(attendance);
+        return toAttendanceResponse(attendance);
     }
 
     @Transactional
@@ -162,38 +160,71 @@ public class AttendanceService {
             cohortMember.decreaseExcusedCount();
         }
 
-        if (newPenalty > oldPenalty) {
-            depositService.applyPenalty(cohortMember, newPenalty - oldPenalty, "ATTENDANCE_UPDATE");
-        } else if (newPenalty < oldPenalty) {
-            depositService.refund(cohortMember, oldPenalty - newPenalty, "ATTENDANCE_UPDATE");
+        int diff = newPenalty - oldPenalty;
+        if (diff > 0) {
+            depositService.applyPenalty(cohortMember, diff, attendance.getId(), "출결 수정 - 추가 차감 " + diff + "원");
+        } else if (diff < 0) {
+            depositService.refund(cohortMember, -diff, attendance.getId(), "출결 수정 - 환급 " + (-diff) + "원");
         }
 
-        attendance.update(request.status(), request.lateMinutes(), newPenalty);
-        return toDto(attendance);
+        attendance.update(request.status(), request.lateMinutes(), newPenalty, request.reason());
+        return toAttendanceResponse(attendance);
     }
 
     @Transactional(readOnly = true)
-    public AttendanceDto.SessionAttendanceSummaryResponse getSessionSummary(Long sessionId) {
+    public List<AttendanceDto.MemberSessionSummaryResponse> getSessionSummary(Long sessionId) {
         SessionEntity session = sessionService.findSession(sessionId);
-        List<Attendance> attendances = attendanceRepository.findBySessionOrderByCreatedAtDesc(session);
-        long present = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.PRESENT).count();
-        long late = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.LATE).count();
-        long absent = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.ABSENT).count();
-        long excused = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.EXCUSED).count();
-        int totalPenalty = attendances.stream().mapToInt(Attendance::getPenaltyAmount).sum();
-        return new AttendanceDto.SessionAttendanceSummaryResponse(present, late, absent, excused, totalPenalty);
+        List<CohortMember> members = cohortMemberRepository.findByCohort(session.getCohort());
+
+        return members.stream().map(cm -> {
+            Attendance attendance = attendanceRepository.findByCohortMemberAndSession(cm, session).orElse(null);
+            long present = attendance != null && attendance.getStatus() == AttendanceStatus.PRESENT ? 1 : 0;
+            long absent = attendance != null && attendance.getStatus() == AttendanceStatus.ABSENT ? 1 : 0;
+            long late = attendance != null && attendance.getStatus() == AttendanceStatus.LATE ? 1 : 0;
+            long excused = attendance != null && attendance.getStatus() == AttendanceStatus.EXCUSED ? 1 : 0;
+            int totalPenalty = attendance == null ? 0 : attendance.getPenaltyAmount();
+            return new AttendanceDto.MemberSessionSummaryResponse(
+                cm.getMember().getId(),
+                cm.getMember().getName(),
+                present,
+                absent,
+                late,
+                excused,
+                totalPenalty,
+                cm.getDepositBalance()
+            );
+        }).toList();
     }
 
     @Transactional(readOnly = true)
-    public List<AttendanceDto.AttendanceResponse> getMemberAttendances(Long memberId) {
-        return attendanceRepository.findByCohortMember_Member_IdOrderByCreatedAtDesc(memberId)
-            .stream().map(this::toDto).toList();
+    public AttendanceDto.MemberAttendanceDetailResponse getMemberAttendances(Long memberId) {
+        Member member = memberService.findMember(memberId);
+        CohortMember cm = cohortMemberRepository.findByMemberAndCohort(member, cohortResolver.getCurrentCohort()).orElse(null);
+        List<AttendanceDto.AttendanceResponse> list = attendanceRepository.findByCohortMember_Member_IdOrderByCreatedAtDesc(memberId)
+            .stream()
+            .map(this::toAttendanceResponse)
+            .toList();
+
+        return new AttendanceDto.MemberAttendanceDetailResponse(
+            member.getId(),
+            member.getName(),
+            cm == null ? null : cm.getCohort().getGeneration(),
+            cm == null || cm.getPart() == null ? null : cm.getPart().getName(),
+            cm == null || cm.getTeam() == null ? null : cm.getTeam().getName(),
+            cm == null ? null : cm.getDepositBalance(),
+            cm == null ? null : cm.getExcusedCount(),
+            list
+        );
     }
 
     @Transactional(readOnly = true)
-    public List<AttendanceDto.AttendanceResponse> getSessionAttendances(Long sessionId) {
+    public AttendanceDto.SessionAttendancesResponse getSessionAttendances(Long sessionId) {
         SessionEntity session = sessionService.findSession(sessionId);
-        return attendanceRepository.findBySessionOrderByCreatedAtDesc(session).stream().map(this::toDto).toList();
+        List<AttendanceDto.AttendanceResponse> list = attendanceRepository.findBySessionOrderByCreatedAtDesc(session)
+            .stream()
+            .map(this::toAttendanceResponse)
+            .toList();
+        return new AttendanceDto.SessionAttendancesResponse(session.getId(), session.getTitle(), list);
     }
 
     private void validateExcusedLimitForCreate(CohortMember cohortMember, AttendanceStatus status) {
@@ -202,34 +233,40 @@ public class AttendanceService {
         }
     }
 
-    private int calculatePenalty(AttendanceStatus status, int lateMinutes) {
+    private int calculatePenalty(AttendanceStatus status, Integer lateMinutes) {
         return switch (status) {
             case PRESENT, EXCUSED -> 0;
             case ABSENT -> 10_000;
-            case LATE -> Math.min(Math.max(lateMinutes, 0) * 500, 10_000);
+            case LATE -> Math.min(Math.max(lateMinutes == null ? 0 : lateMinutes, 0) * 500, 10_000);
         };
     }
 
-    private AttendanceDto.AttendanceResponse toDto(Attendance attendance) {
+    private AttendanceDto.AttendanceResponse toAttendanceResponse(Attendance attendance) {
         return new AttendanceDto.AttendanceResponse(
             attendance.getId(),
             attendance.getSession().getId(),
-            attendance.getSession().getTitle(),
             attendance.getCohortMember().getMember().getId(),
-            attendance.getCohortMember().getMember().getName(),
             attendance.getStatus(),
-            attendance.getLateMinutes(),
+            attendance.getStatus() == AttendanceStatus.LATE ? attendance.getLateMinutes() : null,
             attendance.getPenaltyAmount(),
-            attendance.getCheckedAt()
+            attendance.getReason(),
+            attendance.getCheckedAt(),
+            attendance.getCreatedAt(),
+            attendance.getUpdatedAt()
         );
     }
 
-    private AttendanceDto.AttendanceSummaryResponse toSummary(List<Attendance> attendances, int currentDeposit) {
-        long present = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.PRESENT).count();
-        long late = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.LATE).count();
-        long absent = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.ABSENT).count();
-        long excused = attendances.stream().filter(a -> a.getStatus() == AttendanceStatus.EXCUSED).count();
-        int totalPenalty = attendances.stream().mapToInt(Attendance::getPenaltyAmount).sum();
-        return new AttendanceDto.AttendanceSummaryResponse(present, late, absent, excused, totalPenalty, currentDeposit);
+    private AttendanceDto.MyAttendanceResponse toMyAttendanceResponse(Attendance attendance) {
+        return new AttendanceDto.MyAttendanceResponse(
+            attendance.getId(),
+            attendance.getSession().getId(),
+            attendance.getSession().getTitle(),
+            attendance.getStatus(),
+            attendance.getStatus() == AttendanceStatus.LATE ? attendance.getLateMinutes() : null,
+            attendance.getPenaltyAmount(),
+            attendance.getReason(),
+            attendance.getCheckedAt(),
+            attendance.getCreatedAt()
+        );
     }
 }

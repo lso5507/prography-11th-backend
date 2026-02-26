@@ -37,6 +37,9 @@ public class SessionEntity extends BaseTimeEntity {
     @Column(nullable = false)
     private LocalTime endTime;
 
+    @Column(nullable = false)
+    private String location;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private SessionStatus status;
@@ -44,12 +47,14 @@ public class SessionEntity extends BaseTimeEntity {
     protected SessionEntity() {
     }
 
-    public SessionEntity(Cohort cohort, String title, LocalDate sessionDate, LocalTime startTime, LocalTime endTime, SessionStatus status) {
+    public SessionEntity(Cohort cohort, String title, LocalDate sessionDate, LocalTime startTime, LocalTime endTime, String location,
+                         SessionStatus status) {
         this.cohort = cohort;
         this.title = title;
         this.sessionDate = sessionDate;
         this.startTime = startTime;
         this.endTime = endTime;
+        this.location = location;
         this.status = status;
     }
 
@@ -77,16 +82,31 @@ public class SessionEntity extends BaseTimeEntity {
         return endTime;
     }
 
+    public String getLocation() {
+        return location;
+    }
+
     public SessionStatus getStatus() {
         return status;
     }
 
-    public void update(String title, LocalDate sessionDate, LocalTime startTime, LocalTime endTime, SessionStatus status) {
-        this.title = title;
-        this.sessionDate = sessionDate;
-        this.startTime = startTime;
-        this.endTime = endTime;
-        this.status = status;
+    public void update(String title, LocalDate sessionDate, LocalTime startTime, String location, SessionStatus status) {
+        if (title != null) {
+            this.title = title;
+        }
+        if (sessionDate != null) {
+            this.sessionDate = sessionDate;
+        }
+        if (startTime != null) {
+            this.startTime = startTime;
+            this.endTime = startTime;
+        }
+        if (location != null) {
+            this.location = location;
+        }
+        if (status != null) {
+            this.status = status;
+        }
     }
 
     public void cancel() {

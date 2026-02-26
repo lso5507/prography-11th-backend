@@ -9,37 +9,41 @@ import java.time.LocalTime;
 
 public class SessionDto {
 
+    public record AttendanceSummary(int present, int absent, int late, int excused, int total) {
+    }
+
     public record SessionResponse(
         Long id,
+        Long cohortId,
         String title,
-        LocalDate sessionDate,
-        LocalTime startTime,
-        LocalTime endTime,
+        LocalDate date,
+        LocalTime time,
+        String location,
         SessionStatus status,
-        Long qrCodeId,
-        String qrHashValue,
-        LocalDateTime qrExpiresAt
+        AttendanceSummary attendanceSummary,
+        boolean qrActive,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
     ) {
     }
 
     public record CreateSessionRequest(
         @NotBlank(message = "title은 필수입니다") String title,
-        @NotNull(message = "sessionDate는 필수입니다") LocalDate sessionDate,
-        @NotNull(message = "startTime은 필수입니다") LocalTime startTime,
-        @NotNull(message = "endTime은 필수입니다") LocalTime endTime,
-        @NotNull(message = "status는 필수입니다") SessionStatus status
+        @NotNull(message = "date는 필수입니다") LocalDate date,
+        @NotNull(message = "time은 필수입니다") LocalTime time,
+        @NotBlank(message = "location은 필수입니다") String location
     ) {
     }
 
     public record UpdateSessionRequest(
-        @NotBlank(message = "title은 필수입니다") String title,
-        @NotNull(message = "sessionDate는 필수입니다") LocalDate sessionDate,
-        @NotNull(message = "startTime은 필수입니다") LocalTime startTime,
-        @NotNull(message = "endTime은 필수입니다") LocalTime endTime,
-        @NotNull(message = "status는 필수입니다") SessionStatus status
+        String title,
+        LocalDate date,
+        LocalTime time,
+        String location,
+        SessionStatus status
     ) {
     }
 
-    public record QrCodeResponse(Long id, Long sessionId, String hashValue, LocalDateTime expiresAt, boolean active) {
+    public record QrCodeResponse(Long id, Long sessionId, String hashValue, LocalDateTime createdAt, LocalDateTime expiresAt) {
     }
 }

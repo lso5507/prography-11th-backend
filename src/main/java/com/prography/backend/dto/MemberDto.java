@@ -3,44 +3,57 @@ package com.prography.backend.dto;
 import com.prography.backend.domain.MemberRole;
 import com.prography.backend.domain.MemberStatus;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
+import java.time.LocalDateTime;
 
 public class MemberDto {
 
-    public record MemberSimpleResponse(Long id, String loginId, String name, MemberRole role, MemberStatus status) {
+    public record MemberSimpleResponse(
+        Long id,
+        String loginId,
+        String name,
+        String phone,
+        MemberStatus status,
+        MemberRole role,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
+    ) {
     }
 
     public record MemberDetailResponse(
         Long id,
         String loginId,
         String name,
-        MemberRole role,
+        String phone,
         MemberStatus status,
-        Long cohortMemberId,
-        String cohortName,
+        MemberRole role,
+        Integer generation,
         String partName,
         String teamName,
-        int depositBalance,
-        int excusedCount
+        Integer deposit,
+        LocalDateTime createdAt,
+        LocalDateTime updatedAt
     ) {
+    }
+
+    public record MemberWithdrawResponse(Long id, String loginId, String name, MemberStatus status, LocalDateTime updatedAt) {
     }
 
     public record CreateMemberRequest(
         @NotBlank(message = "loginId는 필수입니다") String loginId,
         @NotBlank(message = "password는 필수입니다") String password,
         @NotBlank(message = "name은 필수입니다") String name,
-        @NotNull(message = "role은 필수입니다") MemberRole role,
-        @NotNull(message = "cohortId는 필수입니다") Long cohortId,
-        @NotNull(message = "partId는 필수입니다") Long partId,
+        @NotBlank(message = "phone은 필수입니다") String phone,
+        Long cohortId,
+        Long partId,
         Long teamId
     ) {
     }
 
     public record UpdateMemberRequest(
-        @NotBlank(message = "name은 필수입니다") String name,
-        @NotNull(message = "role은 필수입니다") MemberRole role,
-        @NotNull(message = "status는 필수입니다") MemberStatus status,
-        @NotNull(message = "partId는 필수입니다") Long partId,
+        String name,
+        String phone,
+        Long cohortId,
+        Long partId,
         Long teamId
     ) {
     }

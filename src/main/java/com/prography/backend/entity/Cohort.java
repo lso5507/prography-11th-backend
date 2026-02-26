@@ -17,13 +17,17 @@ public class Cohort extends BaseTimeEntity {
     private String name;
 
     @Column(nullable = false)
+    private int generation;
+
+    @Column(nullable = false)
     private boolean current;
 
     protected Cohort() {
     }
 
-    public Cohort(String name, boolean current) {
+    public Cohort(String name, int generation, boolean current) {
         this.name = name;
+        this.generation = generation;
         this.current = current;
     }
 
@@ -33,6 +37,10 @@ public class Cohort extends BaseTimeEntity {
 
     public String getName() {
         return name;
+    }
+
+    public int getGeneration() {
+        return generation;
     }
 
     public boolean isCurrent() {

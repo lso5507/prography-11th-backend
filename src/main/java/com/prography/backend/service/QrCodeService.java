@@ -65,7 +65,12 @@ public class QrCodeService {
     }
 
     private SessionDto.QrCodeResponse toDto(QrCode qrCode) {
-        return new SessionDto.QrCodeResponse(qrCode.getId(), qrCode.getSession().getId(), qrCode.getHashValue(), qrCode.getExpiresAt(),
-            qrCode.isActive());
+        return new SessionDto.QrCodeResponse(
+            qrCode.getId(),
+            qrCode.getSession().getId(),
+            qrCode.getHashValue(),
+            qrCode.getCreatedAt(),
+            qrCode.getExpiresAt()
+        );
     }
 }
