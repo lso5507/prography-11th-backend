@@ -1,0 +1,197 @@
+@host = http://localhost:8080
+@base = {{host}}/api/v1
+@newLoginId = scenario-user-001
+@newPassword = pass1234
+
+### 01 로그인
+POST {{base}}/auth/login
+Content-Type: application/json
+
+{
+  "loginId": "admin",
+  "password": "admin1234"
+}
+
+> {%
+  client.test("01 로그인", function() {
+    client.assert(response.status === 200, "status 200 expected");
+    client.assert(response.body.success === true, "success true expected");
+  });
+  client.global.set("adminId", response.body.data.memberId);
+%}
+
+### 08 기수 목록
+GET {{base}}/admin/cohorts
+
+> {%
+  client.test("08 기수 목록", function() {
+    client.assert(response.status === 200, "status 200 expected");
+  });
+  const cohort11 = response.body.data.find(c => c.name === "11기");
+  client.global.set("cohortId", cohort11.id);
+%}
+
+### 09 기수 상세
+GET {{base}}/admin/cohorts/{{cohortId}}
+
+> {%
+  client.test("09 기수 상세", function() {
+    client.assert(response.status === 200, "status 200 expected");
+  });
+  const server = response.body.data.parts.find(p => p.name === "SERVER");
+  const teamA = response.body.data.teams.find(t => t.name === "Team A");
+  client.global.set("partId", server.id);
+  client.global.set("teamId", teamA.id);
+%}
+
+### 03 회원 등록
+POST {{base}}/admin/members
+Content-Type: application/json
+
+{
+  "loginId": "{{newLoginId}}",
+  "password": "{{newPassword}}",
+  "name": "시나리오회원",
+  "role": "MEMBER",
+  "cohortId": {{cohortId}},
+  "partId": {{partId}},
+  "teamId": {{teamId}}
+}
+
+> {%
+  client.test("03 회원 등록", function() {
+    client.assert(response.status === 200, "status 200 expected");
+  });
+  client.global.set("memberId", response.body.data.id);
+  client.global.set("cohortMemberId", response.body.data.cohortMemberId);
+%}
+
+### 02 회원 조회
+GET {{base}}/members/{{memberId}}
+
+### 04 회원 대시보드
+GET {{base}}/admin/members?page=0&size=10
+
+### 05 회원 상세
+GET {{base}}/admin/members/{{memberId}}
+
+### 06 회원 수정
+PUT {{base}}/admin/members/{{memberId}}
+Content-Type: application/json
+
+{
+  "name": "시나리오회원-수정",
+  "role": "MEMBER",
+  "status": "ACTIVE",
+  "partId": {{partId}},
+  "teamId": {{teamId}}
+}
+
+### 12 일정 생성
+POST {{base}}/admin/sessions
+Content-Type: application/json
+
+{
+  "title": "시나리오 세션 1",
+  "sessionDate": "2026-02-26",
+  "startTime": "10:00",
+  "endTime": "12:00",
+  "status": "IN_PROGRESS"
+}
+
+> {%
+  client.global.set("sessionId", response.body.data.id);
+  client.global.set("qrCodeId", response.body.data.qrCodeId);
+  client.global.set("qrHash", response.body.data.qrHashValue);
+%}
+
+### 10 일정 목록 (회원)
+GET {{base}}/sessions
+
+### 11 일정 목록 (관리자)
+GET {{base}}/admin/sessions
+
+### 13 일정 수정
+PUT {{base}}/admin/sessions/{{sessionId}}
+Content-Type: application/json
+
+{
+  "title": "시나리오 세션 1 - 수정",
+  "sessionDate": "2026-02-26",
+  "startTime": "10:00",
+  "endTime": "13:00",
+  "status": "IN_PROGRESS"
+}
+
+### 15 QR 생성
+### 참고: 일정 생성 시 QR이 자동 생성되므로, 활성 QR이 있으면 409(QR_ALREADY_ACTIVE)가 반환될 수 있습니다.
+POST {{base}}/admin/sessions/{{sessionId}}/qrcodes
+
+### 16 QR 갱신
+PUT {{base}}/admin/qrcodes/{{qrCodeId}}
+
+> {%
+  if (response.status === 200) {
+    client.global.set("qrCodeId", response.body.data.id);
+    client.global.set("qrHash", response.body.data.hashValue);
+  }
+%}
+
+### 17 QR 출석 체크
+POST {{base}}/attendances
+Content-Type: application/json
+
+{
+  "qrHashValue": "{{qrHash}}",
+  "memberId": {{memberId}}
+}
+
+> {%
+  if (response.status === 200) {
+    client.global.set("attendanceId", response.body.data.id);
+  }
+%}
+
+### 18 내 출결 기록
+GET {{base}}/attendances?memberId={{memberId}}
+
+### 19 내 출결 요약
+GET {{base}}/members/{{memberId}}/attendance-summary
+
+### 20 출결 등록
+POST {{base}}/admin/attendances
+Content-Type: application/json
+
+{
+  "sessionId": {{sessionId}},
+  "memberId": {{memberId}},
+  "status": "ABSENT",
+  "lateMinutes": 0
+}
+
+### 21 출결 수정
+PUT {{base}}/admin/attendances/{{attendanceId}}
+Content-Type: application/json
+
+{
+  "status": "EXCUSED",
+  "lateMinutes": 0
+}
+
+### 22 일정별 출결 요약
+GET {{base}}/admin/attendances/sessions/{{sessionId}}/summary
+
+### 23 회원 출결 상세
+GET {{base}}/admin/attendances/members/{{memberId}}
+
+### 24 일정별 출결 목록
+GET {{base}}/admin/attendances/sessions/{{sessionId}}
+
+### 25 보증금 이력
+GET {{base}}/admin/cohort-members/{{cohortMemberId}}/deposits
+
+### 14 일정 삭제
+DELETE {{base}}/admin/sessions/{{sessionId}}
+
+### 07 회원 탈퇴
+DELETE {{base}}/admin/members/{{memberId}}
